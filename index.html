@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toolbox — Browser-Native Utilities</title>
+<meta name="description" content="Toolbox: JSON formatter, Base64, URL encoder, UUID generator, timestamp converter and text tools. 100% client-side — your data never leaves your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='6' fill='%230d1117'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='16' font-weight='bold' fill='%232dd4bf' text-anchor='middle'%3E%7B%7D%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#2a3340; --ink:#e6edf3; --dim:#8b949e;
+    --accent:#2dd4bf; --accent-dim:#134e4a; --danger:#f85149; --ok:#3fb950;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  }
+  header{ text-align:center; padding:30px 16px 8px; }
+  header h1{ margin:0; font-size:clamp(24px,4vw,34px); letter-spacing:.3em; font-weight:800; }
+  header h1 span{ color:var(--accent); }
+  header p{ margin:10px 0 0; color:var(--dim); font-size:12px; letter-spacing:.14em; }
+  header p b{ color:var(--accent); font-weight:700; }
+
+  main{ width:min(980px,94vw); padding:20px 0 46px; display:flex; flex-direction:column; gap:0; }
+
+  nav.tabs{
+    display:flex; gap:6px; flex-wrap:wrap; margin-bottom:-1px; position:relative; z-index:1;
+  }
+  nav.tabs button{
+    background:transparent; color:var(--dim); border:1px solid transparent; border-bottom:none;
+    border-radius:10px 10px 0 0; padding:11px 18px; font:inherit; font-size:13px;
+    letter-spacing:.08em; cursor:pointer;
+  }
+  nav.tabs button:hover{ color:var(--ink); }
+  nav.tabs button[aria-selected="true"]{
+    background:var(--panel); color:var(--accent); border-color:var(--line);
+  }
+
+  section.tool{
+    display:none; background:var(--panel); border:1px solid var(--line); border-radius:0 12px 12px 12px;
+    padding:20px;
+  }
+  section.tool.active{ display:block; }
+  section.tool h2{ margin:0 0 4px; font-size:15px; letter-spacing:.14em; }
+  section.tool .desc{ margin:0 0 16px; color:var(--dim); font-size:12px; }
+
+  textarea, input[type="text"]{
+    width:100%; background:#0a0d12; color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; font:inherit; font-size:13px; padding:12px;
+  }
+  textarea{ min-height:150px; resize:vertical; }
+  textarea:focus, input[type="text"]:focus{ outline:2px solid var(--accent-dim); border-color:var(--accent); }
+  textarea[readonly]{ color:var(--ink); }
+  .out{ margin-top:12px; }
+  .out.error textarea{ border-color:var(--danger); color:var(--danger); }
+  .out.ok textarea{ border-color:var(--accent-dim); }
+
+  .btnrow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  .btn{
+    border:1px solid var(--line); background:#0a0d12; color:var(--ink);
+    border-radius:8px; padding:9px 16px; font:inherit; font-size:12px; font-weight:700;
+    letter-spacing:.1em; cursor:pointer;
+  }
+  .btn:hover{ border-color:var(--accent); }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:#06251f; }
+  .btn.primary:hover{ filter:brightness(1.1); }
+  .msg{ font-size:12px; min-height:18px; margin-top:10px; }
+  .msg.err{ color:var(--danger); }
+  .msg.okm{ color:var(--ok); }
+
+  .stats{ display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--dim); }
+  .stats b{ color:var(--accent); font-size:14px; }
+
+  .uuid-item{
+    display:flex; gap:10px; align-items:center; background:#0a0d12; border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; margin-top:8px; font-size:13px;
+  }
+  .uuid-item code{ flex:1; word-break:break-all; }
+  .mini{
+    border:1px solid var(--line); background:transparent; color:var(--dim);
+    border-radius:6px; padding:5px 10px; font:inherit; font-size:11px; cursor:pointer; white-space:nowrap;
+  }
+  .mini:hover{ color:var(--accent); border-color:var(--accent); }
+
+  .twocol{ display:grid; gap:12px; grid-template-columns:1fr; }
+  @media(min-width:700px){ .twocol{ grid-template-columns:1fr 1fr; } }
+  .field label{ display:block; font-size:11px; letter-spacing:.16em; color:var(--dim); margin-bottom:8px; }
+
+  footer{ color:var(--dim); font-size:11px; letter-spacing:.14em; padding-bottom:28px; text-align:center; }
+  footer a{ color:var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TOOL<span>BOX</span></h1>
+  <p>BROWSER-NATIVE UTILITIES &mdash; <b>100% CLIENT-SIDE.</b> YOUR DATA NEVER LEAVES THIS PAGE.</p>
+</header>
+
+<main>
+  <nav class="tabs" role="tablist" aria-label="Tools">
+    <button role="tab" data-tab="json" aria-selected="true">JSON</button>
+    <button role="tab" data-tab="base64" aria-selected="false">BASE64</button>
+    <button role="tab" data-tab="url" aria-selected="false">URL</button>
+    <button role="tab" data-tab="uuid" aria-selected="false">UUID</button>
+    <button role="tab" data-tab="time" aria-selected="false">TIMESTAMP</button>
+    <button role="tab" data-tab="text" aria-selected="false">TEXT</button>
+  </nav>
+
+  <!-- JSON -->
+  <section class="tool active" id="tab-json" role="tabpanel">
+    <h2>JSON FORMATTER</h2>
+    <p class="desc">Validate, pretty-print or minify JSON.</p>
+    <textarea id="json-in" spellcheck="false" placeholder='Paste JSON here, e.g. {"hello":"world"}'></textarea>
+    <div class="btnrow">
+      <button class="btn primary" data-j="fmt">FORMAT</button>
+      <button class="btn" data-j="min">MINIFY</button>
+      <button class="btn" data-j="val">VALIDATE</button>
+      <button class="btn" data-j="copy">COPY OUTPUT</button>
+      <button class="btn" data-j="clear">CLEAR</button>
+    </div>
+    <div class="out" id="json-out-wrap"><textarea id="json-out" class="out" readonly spellcheck="false" placeholder="Output"></textarea></div>
+    <div class="msg" id="json-msg"></div>
+  </section>
+
+  <!-- BASE64 -->
+  <section class="tool" id="tab-base64" role="tabpanel">
+    <h2>BASE64 ENCODE / DECODE</h2>
+    <p class="desc">Unicode-safe. Works with any text, including emoji.</p>
+    <textarea id="b64-in" spellcheck="false" placeholder="Type or paste text here"></textarea>
+    <div class="btnrow">
+      <button class="btn primary" data-b="enc">ENCODE</button>
+      <button class="btn" data-b="dec">DECODE</button>
+      <button class="btn" data-b="copy">COPY OUTPUT</button>
+      <button class="btn" data-b="clear">CLEAR</button>
+    </div>
+    <div class="out"><textarea id="b64-out" readonly spellcheck="false" placeholder="Output"></textarea></div>
+    <div class="msg" id="b64-msg"></div>
+  </section>
+
+  <!-- URL -->
+  <section class="tool" id="tab-url" role="tabpanel">
+    <h2>URL ENCODE / DECODE</h2>
+    <p class="desc">Percent-encoding for URLs and query strings.</p>
+    <textarea id="url-in" spellcheck="false" placeholder="Type or paste text / URL here"></textarea>
+    <div class="btnrow">
+      <button class="btn primary" data-u="enc">ENCODE</button>
+      <button class="btn" data-u="dec">DECODE</button>
+      <button class="btn" data-u="copy">COPY OUTPUT</button>
+      <button class="btn" data-u="clear">CLEAR</button>
+    </div>
+    <div class="out"><textarea id="url-out" readonly spellcheck="false" placeholder="Output"></textarea></div>
+    <div class="msg" id="url-msg"></div>
+  </section>
+
+  <!-- UUID -->
+  <section class="tool" id="tab-uuid" role="tabpanel">
+    <h2>UUID GENERATOR</h2>
+    <p class="desc">Cryptographically random v4 UUIDs, generated locally.</p>
+    <div class="btnrow" style="margin-top:0">
+      <button class="btn primary" id="uuid-one">GENERATE ONE</button>
+      <button class="btn" id="uuid-ten">GENERATE 10</button>
+      <button class="btn" id="uuid-copyall">COPY ALL</button>
+      <button class="btn" id="uuid-clear">CLEAR</button>
+    </div>
+    <div id="uuid-list"></div>
+  </section>
+
+  <!-- TIMESTAMP -->
+  <section class="tool" id="tab-time" role="tabpanel">
+    <h2>TIMESTAMP CONVERTER</h2>
+    <p class="desc">Two-way conversion. Auto-detects seconds vs milliseconds.</p>
+    <div class="twocol">
+      <div class="field">
+        <label>UNIX TIMESTAMP → DATE</label>
+        <input type="text" id="ts-in" placeholder="e.g. 1757977200">
+        <div class="btnrow">
+          <button class="btn primary" id="ts-go">CONVERT</button>
+          <button class="btn" id="ts-now">USE NOW</button>
+        </div>
+        <div class="out"><textarea id="ts-out" readonly rows="4" style="min-height:96px" placeholder="Result"></textarea></div>
+      </div>
+      <div class="field">
+        <label>DATE → UNIX TIMESTAMP</label>
+        <input type="text" id="dt-in" placeholder='e.g. 2026-09-15 16:20:00'>
+        <div class="btnrow">
+          <button class="btn primary" id="dt-go">CONVERT</button>
+        </div>
+        <div class="out"><textarea id="dt-out" readonly rows="4" style="min-height:96px" placeholder="Result"></textarea></div>
+      </div>
+    </div>
+    <div class="msg" id="ts-msg"></div>
+  </section>
+
+  <!-- TEXT -->
+  <section class="tool" id="tab-text" role="tabpanel">
+    <h2>TEXT TOOLS</h2>
+    <p class="desc">Case conversion, line operations and stats.</p>
+    <textarea id="txt-in" spellcheck="false" placeholder="Paste your text here"></textarea>
+    <div class="btnrow">
+      <button class="btn" data-t="upper">UPPERCASE</button>
+      <button class="btn" data-t="lower">lowercase</button>
+      <button class="btn" data-t="title">Title Case</button>
+      <button class="btn" data-t="sort">SORT LINES</button>
+      <button class="btn" data-t="dedupe">REMOVE DUPLICATES</button>
+      <button class="btn" data-t="trim">TRIM LINES</button>
+      <button class="btn" data-t="noempty">REMOVE EMPTY LINES</button>
+    </div>
+    <div class="btnrow">
+      <button class="btn primary" data-t="copy">COPY</button>
+      <button class="btn" data-t="clear">CLEAR</button>
+    </div>
+    <div class="stats">
+      <span>Characters: <b id="st-chars">0</b></span>
+      <span>Words: <b id="st-words">0</b></span>
+      <span>Lines: <b id="st-lines">0</b></span>
+    </div>
+    <div class="msg" id="txt-msg"></div>
+  </section>
+</main>
+
+<footer>
+  TOOLBOX &mdash; NO SIGNUP &middot; NO TRACKING &middot; <a href="https://github.com/sierralx/Toolbox">GITHUB</a>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- tabs ---------- */
+  var tabBtns = document.querySelectorAll('nav.tabs button');
+  tabBtns.forEach(function(b){
+    b.addEventListener('click', function(){
+      tabBtns.forEach(function(x){ x.setAttribute('aria-selected', 'false'); });
+      b.setAttribute('aria-selected', 'true');
+      document.querySelectorAll('section.tool').forEach(function(s){ s.classList.remove('active'); });
+      document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+      try{ history.replaceState(null, '', '#' + b.dataset.tab); }catch(e){}
+    });
+  });
+  var h = (location.hash || '').replace('#','');
+  if (h){
+    var btn = document.querySelector('nav.tabs button[data-tab="' + h + '"]');
+    if (btn) btn.click();
+  }
+
+  /* ---------- helpers ---------- */
+  function copyText(text, msgEl, okMsg){
+    function done(){
+      if (msgEl){ msgEl.className = 'msg okm'; msgEl.textContent = okMsg || 'Copied to clipboard.'; }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, function(){ fallback(); });
+    } else { fallback(); }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }
+      catch(e){ if (msgEl){ msgEl.className = 'msg err'; msgEl.textContent = 'Copy failed — select the text manually.'; } }
+      document.body.removeChild(ta);
+    }
+  }
+  function setMsg(id, text, isErr){
+    var el = document.getElementById(id);
+    el.className = 'msg ' + (isErr ? 'err' : 'okm');
+    el.textContent = text;
+  }
+
+  /* ---------- JSON ---------- */
+  var jsonIn = document.getElementById('json-in'),
+      jsonOut = document.getElementById('json-out'),
+      jsonWrap = document.getElementById('json-out-wrap');
+  function jsonParse(){
+    var raw = jsonIn.value.trim();
+    if (!raw) throw new Error('Input is empty.');
+    return JSON.parse(raw);
+  }
+  document.querySelectorAll('[data-j]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var op = b.dataset.j;
+      jsonWrap.classList.remove('error','ok');
+      if (op === 'clear'){ jsonIn.value=''; jsonOut.value=''; setMsg('json-msg','',false); return; }
+      if (op === 'copy'){
+        if (!jsonOut.value){ setMsg('json-msg','Nothing to copy.',true); return; }
+        copyText(jsonOut.value, document.getElementById('json-msg'));
+        return;
+      }
+      try{
+        var obj = jsonParse();
+        if (op === 'fmt'){ jsonOut.value = JSON.stringify(obj, null, 2); }
+        else if (op === 'min'){ jsonOut.value = JSON.stringify(obj); }
+        else { jsonOut.value = 'Valid JSON ✓'; }
+        jsonWrap.classList.add('ok');
+        setMsg('json-msg', op === 'val' ? 'Valid JSON.' : 'Done.', false);
+      }catch(e){
+        jsonOut.value = '';
+        jsonWrap.classList.add('error');
+        setMsg('json-msg', 'Invalid JSON: ' + e.message, true);
+      }
+    });
+  });
+
+  /* ---------- Base64 ---------- */
+  var b64In = document.getElementById('b64-in'), b64Out = document.getElementById('b64-out');
+  function b64enc(s){
+    var bytes = new TextEncoder().encode(s), bin = '';
+    bytes.forEach(function(x){ bin += String.fromCharCode(x); });
+    return btoa(bin);
+  }
+  function b64dec(s){
+    var bin = atob(s.trim().replace(/\s+/g,''));
+    var bytes = Uint8Array.from(bin, function(c){ return c.charCodeAt(0); });
+    return new TextDecoder().decode(bytes);
+  }
+  document.querySelectorAll('[data-b]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var op = b.dataset.b;
+      if (op === 'clear'){ b64In.value=''; b64Out.value=''; setMsg('b64-msg','',false); return; }
+      if (op === 'copy'){
+        if (!b64Out.value){ setMsg('b64-msg','Nothing to copy.',true); return; }
+        copyText(b64Out.value, document.getElementById('b64-msg'));
+        return;
+      }
+      try{
+        b64Out.value = op === 'enc' ? b64enc(b64In.value) : b64dec(b64In.value);
+        setMsg('b64-msg','Done.',false);
+      }catch(e){ setMsg('b64-msg','Decode failed: not valid Base64.',true); }
+    });
+  });
+
+  /* ---------- URL ---------- */
+  var urlIn = document.getElementById('url-in'), urlOut = document.getElementById('url-out');
+  document.querySelectorAll('[data-u]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var op = b.dataset.u;
+      if (op === 'clear'){ urlIn.value=''; urlOut.value=''; setMsg('url-msg','',false); return; }
+      if (op === 'copy'){
+        if (!urlOut.value){ setMsg('url-msg','Nothing to copy.',true); return; }
+        copyText(urlOut.value, document.getElementById('url-msg'));
+        return;
+      }
+      try{
+        urlOut.value = op === 'enc' ? encodeURIComponent(urlIn.value) : decodeURIComponent(urlIn.value);
+        setMsg('url-msg','Done.',false);
+      }catch(e){ setMsg('url-msg','Decode failed: malformed input.',true); }
+    });
+  });
+
+  /* ---------- UUID ---------- */
+  var uuidList = document.getElementById('uuid-list');
+  function newUUID(){
+    if (crypto.randomUUID) return crypto.randomUUID();
+    var b = new Uint8Array(16); crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.from(b, function(x){ return x.toString(16).padStart(2,'0'); }).join('');
+    return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+  }
+  function addUUID(){
+    var id = newUUID();
+    var div = document.createElement('div');
+    div.className = 'uuid-item';
+    var code = document.createElement('code'); code.textContent = id;
+    var btn = document.createElement('button'); btn.className = 'mini'; btn.textContent = 'COPY';
+    btn.addEventListener('click', function(){ copyText(id, null); btn.textContent = 'COPIED'; setTimeout(function(){ btn.textContent='COPY'; }, 1200); });
+    div.appendChild(code); div.appendChild(btn);
+    uuidList.prepend(div);
+  }
+  document.getElementById('uuid-one').addEventListener('click', addUUID);
+  document.getElementById('uuid-ten').addEventListener('click', function(){ for (var i=0;i<10;i++) addUUID(); });
+  document.getElementById('uuid-clear').addEventListener('click', function(){ uuidList.innerHTML=''; });
+  document.getElementById('uuid-copyall').addEventListener('click', function(){
+    var ids = Array.from(uuidList.querySelectorAll('code')).map(function(c){ return c.textContent; });
+    if (!ids.length) return;
+    copyText(ids.join('\n'), null);
+  });
+
+  /* ---------- Timestamp ---------- */
+  var tsIn = document.getElementById('ts-in'), tsOut = document.getElementById('ts-out'),
+      dtIn = document.getElementById('dt-in'), dtOut = document.getElementById('dt-out');
+  function fmtDate(d){
+    function p(n){ return String(n).padStart(2,'0'); }
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+
+           p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())+' (local)';
+  }
+  document.getElementById('ts-go').addEventListener('click', function(){
+    var v = tsIn.value.trim();
+    if (!/^-?\d+$/.test(v)){ setMsg('ts-msg','Enter a numeric timestamp.',true); return; }
+    var n = parseInt(v, 10);
+    var ms = Math.abs(n) > 1e12 ? n : n * 1000;
+    var d = new Date(ms);
+    if (isNaN(d.getTime())){ setMsg('ts-msg','Invalid timestamp.',true); return; }
+    tsOut.value = 'UTC:   ' + d.toISOString().replace('T',' ').replace('Z',' UTC') + '\n' +
+                  'Local: ' + fmtDate(d) + '\n' +
+                  'ms:    ' + d.getTime();
+    setMsg('ts-msg','',false);
+  });
+  document.getElementById('ts-now').addEventListener('click', function(){
+    tsIn.value = String(Math.floor(Date.now()/1000));
+    document.getElementById('ts-go').click();
+  });
+  document.getElementById('dt-go').addEventListener('click', function(){
+    var v = dtIn.value.trim().replace(' ', 'T');
+    var d = new Date(v);
+    if (isNaN(d.getTime())){ setMsg('ts-msg','Could not parse date. Try YYYY-MM-DD HH:MM:SS.',true); return; }
+    dtOut.value = 'seconds:      ' + Math.floor(d.getTime()/1000) + '\n' +
+                  'milliseconds: ' + d.getTime();
+    setMsg('ts-msg','',false);
+  });
+
+  /* ---------- Text ---------- */
+  var txtIn = document.getElementById('txt-in');
+  function txtStats(){
+    var v = txtIn.value;
+    document.getElementById('st-chars').textContent = v.length;
+    document.getElementById('st-words').textContent = (v.trim().match(/\S+/g) || []).length;
+    document.getElementById('st-lines').textContent = v ? v.split('\n').length : 0;
+  }
+  txtIn.addEventListener('input', txtStats);
+  function titleCase(s){
+    return s.toLowerCase().replace(/(?:^|[\s\-_"'“‘(\[{])[a-zà-ÿ]/g, function(m){ return m.toUpperCase(); });
+  }
+  document.querySelectorAll('[data-t]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var op = b.dataset.t, v = txtIn.value;
+      if (op === 'clear'){ txtIn.value=''; txtStats(); setMsg('txt-msg','',false); return; }
+      if (op === 'copy'){
+        if (!v){ setMsg('txt-msg','Nothing to copy.',true); return; }
+        copyText(v, document.getElementById('txt-msg'));
+        return;
+      }
+      if (op === 'upper') v = v.toUpperCase();
+      else if (op === 'lower') v = v.toLowerCase();
+      else if (op === 'title') v = titleCase(v);
+      else if (op === 'sort') v = v.split('\n').sort(function(a,b){ return a.localeCompare(b); }).join('\n');
+      else if (op === 'dedupe'){
+        var seen = {};
+        v = v.split('\n').filter(function(l){ if (seen[l]) return false; seen[l]=1; return true; }).join('\n');
+      }
+      else if (op === 'trim') v = v.split('\n').map(function(l){ return l.trim(); }).join('\n');
+      else if (op === 'noempty') v = v.split('\n').filter(function(l){ return l.trim() !== ''; }).join('\n');
+      txtIn.value = v;
+      txtStats();
+      setMsg('txt-msg','Done.',false);
+    });
+  });
+  txtStats();
+})();
+</script>
+</body>
+</html>
